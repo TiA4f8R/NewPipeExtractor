@@ -31,7 +31,6 @@ import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.getClientVersion;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.getJsonResponse;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.getTextFromObject;
-import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.getKey;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.getUrlFromNavigationEndpoint;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.getValidJsonResponseBody;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.toJsonObject;
@@ -180,7 +179,7 @@ public class YoutubePlaylistExtractor extends PlaylistExtractor {
 
     @Nonnull
     @Override
-    public InfoItemsPage<StreamInfoItem> getInitialPage() throws IOException, ExtractionException {
+    public InfoItemsPage<StreamInfoItem> getInitialPage() {
         final StreamInfoItemsCollector collector = new StreamInfoItemsCollector(getServiceId());
         Page nextPage = null;
 
@@ -247,7 +246,7 @@ public class YoutubePlaylistExtractor extends PlaylistExtractor {
         return new InfoItemsPage<>(collector, getNextPageFrom(continuation));
     }
 
-    private Page getNextPageFrom(final JsonArray contents) throws IOException, ExtractionException {
+    private Page getNextPageFrom(final JsonArray contents) {
         if (isNullOrEmpty(contents)) {
             return null;
         }
@@ -260,7 +259,7 @@ public class YoutubePlaylistExtractor extends PlaylistExtractor {
                     .getObject("continuationCommand")
                     .getString("token");
             return new Page(
-                    "https://www.youtube.com/youtubei/v1/browse?key=" + getKey(),
+                    "https://www.youtube.com/youtubei/v1/browse?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8",
                     continuation);
         } else {
             return null;
