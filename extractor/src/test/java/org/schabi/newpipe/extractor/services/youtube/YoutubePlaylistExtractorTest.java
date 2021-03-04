@@ -13,11 +13,7 @@ import org.schabi.newpipe.extractor.exceptions.ContentNotAvailableException;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.playlist.PlaylistExtractor;
 import org.schabi.newpipe.extractor.services.BasePlaylistExtractorTest;
-import org.schabi.newpipe.extractor.services.youtube.YoutubePlaylistExtractorTest.ContinuationsTests;
-import org.schabi.newpipe.extractor.services.youtube.YoutubePlaylistExtractorTest.HugePlaylist;
-import org.schabi.newpipe.extractor.services.youtube.YoutubePlaylistExtractorTest.LearningPlaylist;
-import org.schabi.newpipe.extractor.services.youtube.YoutubePlaylistExtractorTest.NotAvailable;
-import org.schabi.newpipe.extractor.services.youtube.YoutubePlaylistExtractorTest.TimelessPopHits;
+import org.schabi.newpipe.extractor.services.youtube.YoutubePlaylistExtractorTest.*;
 import org.schabi.newpipe.extractor.services.youtube.extractors.YoutubePlaylistExtractor;
 import org.schabi.newpipe.extractor.stream.StreamInfoItem;
 
@@ -414,7 +410,7 @@ public class YoutubePlaylistExtractorTest {
         public void testOnlySingleContinuation() throws Exception {
             final YoutubePlaylistExtractor extractor = (YoutubePlaylistExtractor) YouTube
                     .getPlaylistExtractor(
-                            "https://www.youtube.com/playlist?list=PLoumn5BIsUDeGF1vy5Nylf_RJKn5aL_nr");
+                            "https://www.youtube.com/playlist?list=PLjgwFL8urN2DFRuRkFTkmtHjyoNWHHdZX");
             extractor.fetchPage();
 
             final ListExtractor.InfoItemsPage<StreamInfoItem> page = defaultTestMoreItems(
