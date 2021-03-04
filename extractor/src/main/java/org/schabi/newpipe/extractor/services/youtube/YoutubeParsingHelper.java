@@ -1,11 +1,6 @@
 package org.schabi.newpipe.extractor.services.youtube;
 
-import com.grack.nanojson.JsonArray;
-import com.grack.nanojson.JsonObject;
-import com.grack.nanojson.JsonParser;
-import com.grack.nanojson.JsonParserException;
-import com.grack.nanojson.JsonWriter;
-
+import com.grack.nanojson.*;
 import org.schabi.newpipe.extractor.MetaInfo;
 import org.schabi.newpipe.extractor.Page;
 import org.schabi.newpipe.extractor.downloader.Response;
@@ -38,12 +33,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import static org.schabi.newpipe.extractor.NewPipe.getDownloader;
-import static org.schabi.newpipe.extractor.utils.Utils.EMPTY_STRING;
-import static org.schabi.newpipe.extractor.utils.Utils.HTTP;
-import static org.schabi.newpipe.extractor.utils.Utils.HTTPS;
-import static org.schabi.newpipe.extractor.utils.Utils.UTF_8;
-import static org.schabi.newpipe.extractor.utils.Utils.isNullOrEmpty;
-import static org.schabi.newpipe.extractor.utils.Utils.join;
+import static org.schabi.newpipe.extractor.utils.Utils.*;
 
 /*
  * Created by Christian Schabesberger on 02.03.16.
@@ -668,14 +658,6 @@ public class YoutubeParsingHelper {
     public static JsonArray toJsonArray(final String responseBody) throws ParsingException {
         try {
             return JsonParser.array().from(responseBody);
-        } catch (JsonParserException e) {
-            throw new ParsingException("Could not parse JSON", e);
-        }
-    }
-
-    public static JsonObject toJsonObject(final String responseBody) throws ParsingException {
-        try {
-            return JsonParser.object().from(responseBody);
         } catch (JsonParserException e) {
             throw new ParsingException("Could not parse JSON", e);
         }
