@@ -4,6 +4,7 @@ import com.grack.nanojson.JsonArray;
 import com.grack.nanojson.JsonObject;
 import com.grack.nanojson.JsonParser;
 import com.grack.nanojson.JsonParserException;
+import com.grack.nanojson.JsonWriter;
 
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -27,6 +28,7 @@ import org.schabi.newpipe.extractor.exceptions.PrivateContentException;
 import org.schabi.newpipe.extractor.exceptions.ReCaptchaException;
 import org.schabi.newpipe.extractor.exceptions.YoutubeMusicPremiumContentException;
 import org.schabi.newpipe.extractor.linkhandler.LinkHandler;
+import org.schabi.newpipe.extractor.localization.ContentCountry;
 import org.schabi.newpipe.extractor.localization.DateWrapper;
 import org.schabi.newpipe.extractor.localization.Localization;
 import org.schabi.newpipe.extractor.localization.TimeAgoParser;
@@ -50,6 +52,7 @@ import java.util.*;
 
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.*;
 import static org.schabi.newpipe.extractor.utils.Utils.EMPTY_STRING;
+import static org.schabi.newpipe.extractor.utils.Utils.UTF_8;
 import static org.schabi.newpipe.extractor.utils.Utils.isNullOrEmpty;
 
 /*
@@ -90,11 +93,10 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     @Nullable
     private String playerJsUrl = null;
 
-    private JsonArray initialAjaxJson;
-    private JsonObject initialData;
     @Nonnull
     private final Map<String, String> videoInfoPage = new HashMap<>();
     private JsonObject playerResponse;
+    private JsonObject nextResponse;
     private JsonObject videoPrimaryInfoRenderer;
     private JsonObject videoSecondaryInfoRenderer;
     private int ageLimit = -1;
@@ -621,7 +623,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             final StreamInfoItemsCollector collector = new StreamInfoItemsCollector(
                     getServiceId());
 
-            final JsonArray results = initialData.getObject("contents")
+            final JsonArray results = nextResponse.getObject("contents")
                     .getObject("twoColumnWatchNextResults").getObject("secondaryResults")
                     .getObject("secondaryResults").getArray("results");
 
@@ -673,17 +675,16 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     @Override
     public void onFetchPage(@Nonnull final Downloader downloader)
             throws IOException, ExtractionException {
-        initialAjaxJson = getJsonResponse(getUrl() + "&pbj=1", getExtractorLocalization());
+        final String videoId = super.getId();
+        final Localization localization = getExtractorLocalization();
+        final ContentCountry contentCountry = getExtractorContentCountry();
+        final byte[] body = JsonWriter.string(prepareJsonBuilder(localization,
+                contentCountry)
+                .value("videoId", videoId)
+                .done())
+                .getBytes(UTF_8);
+        playerResponse = getJsonPostResponse("player", body, localization);
 
-        initialData = initialAjaxJson.getObject(3).getObject("response", null);
-        if (initialData == null) {
-            initialData = initialAjaxJson.getObject(2).getObject("response", null);
-            if (initialData == null) {
-                throw new ParsingException("Could not get initial data");
-            }
-        }
-
-        playerResponse = initialAjaxJson.getObject(2).getObject("playerResponse", null);
         // Save the playerResponse from the youtube.com website,
         // because there can be restrictions on the embedded player.
         // E.g. if a video is age-restricted, the embedded player's playabilityStatus says,
@@ -759,6 +760,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
 
             throw new ContentNotAvailableException("Got error: \"" + reason + "\"");
         }
+        nextResponse = getJsonPostResponse("next", body, localization);
     }
 
     private void fetchVideoInfoPage() throws ParsingException, ReCaptchaException, IOException {
@@ -909,7 +911,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     private JsonObject getVideoPrimaryInfoRenderer() throws ParsingException {
         if (this.videoPrimaryInfoRenderer != null) return this.videoPrimaryInfoRenderer;
 
-        final JsonArray contents = initialData.getObject("contents")
+        final JsonArray contents = nextResponse.getObject("contents")
                 .getObject("twoColumnWatchNextResults").getObject("results").getObject("results")
                 .getArray("contents");
         JsonObject videoPrimaryInfoRenderer = null;
@@ -933,7 +935,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     private JsonObject getVideoSecondaryInfoRenderer() throws ParsingException {
         if (this.videoSecondaryInfoRenderer != null) return this.videoSecondaryInfoRenderer;
 
-        final JsonArray contents = initialData.getObject("contents")
+        final JsonArray contents = nextResponse.getObject("contents")
                 .getObject("twoColumnWatchNextResults").getObject("results").getObject("results")
                 .getArray("contents");
         JsonObject videoSecondaryInfoRenderer = null;
@@ -1143,8 +1145,8 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     @Override
     public List<StreamSegment> getStreamSegments() throws ParsingException {
         final ArrayList<StreamSegment> segments = new ArrayList<>();
-        if (initialData.has("engagementPanels")) {
-            final JsonArray panels = initialData.getArray("engagementPanels");
+        if (nextResponse.has("engagementPanels")) {
+            final JsonArray panels = nextResponse.getArray("engagementPanels");
             JsonArray segmentsArray = null;
 
             // Search for correct panel containing the data
@@ -1207,7 +1209,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     @Override
     public List<MetaInfo> getMetaInfo() throws ParsingException {
         return YoutubeParsingHelper.getMetaInfo(
-                initialData.getObject("contents").getObject("twoColumnWatchNextResults")
+                nextResponse.getObject("contents").getObject("twoColumnWatchNextResults")
                         .getObject("results").getObject("results").getArray("contents"));
     }
 }
