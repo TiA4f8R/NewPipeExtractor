@@ -803,6 +803,12 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         }
     }
 
+    /**
+     * Fetch the Android Mobile API or fallback to the desktop streams.
+     * If something went wrong when parsing this API, fallback to the desktop JSON player, fetched
+     * again if the {@code signatureTimestamp} of the JS player is unknown (because signatures
+     * without a {@code signatureTimestamp} included in the player request are invalid).
+     */
     private void fetchAndroidMobileJsonPlayer(final ContentCountry contentCountry,
                                               final Localization localization,
                                               final String videoId,
@@ -817,7 +823,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         try {
             mobilePlayerResponse = getJsonMobilePostResponse("player", mobileBody,
                     contentCountry, localization);
-        } catch (final IOException | ExtractionException ignored) {
+        } catch (final Exception ignored) {
         }
         if (mobilePlayerResponse != null && mobilePlayerResponse.has("streamingData")) {
             final JsonObject mobileStreamingData = mobilePlayerResponse.getObject(
