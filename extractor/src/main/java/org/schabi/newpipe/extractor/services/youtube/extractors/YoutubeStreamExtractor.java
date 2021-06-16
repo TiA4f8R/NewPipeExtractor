@@ -27,6 +27,7 @@ import org.schabi.newpipe.extractor.services.youtube.ItagItem;
 import org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper;
 import org.schabi.newpipe.extractor.services.youtube.linkHandler.YoutubeChannelLinkHandlerFactory;
 import org.schabi.newpipe.extractor.stream.*;
+import org.schabi.newpipe.extractor.utils.DashMpdParser;
 import org.schabi.newpipe.extractor.utils.JsonUtils;
 import org.schabi.newpipe.extractor.utils.Parser;
 import org.schabi.newpipe.extractor.utils.Utils;
@@ -92,6 +93,9 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     private int ageLimit = -1;
     @Nullable
     private List<SubtitlesStream> subtitles = null;
+    private Boolean hasDashManifest = null;
+    @Nullable
+    private DashMpdParser.Result dashResult;
 
     public YoutubeStreamExtractor(final StreamingService service, final LinkHandler linkHandler) {
         super(service, linkHandler);
@@ -485,7 +489,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
 
             return dashManifestUrl;
         } catch (final Exception e) {
-            throw new ParsingException("Could not get dash manifest url", e);
+            throw new ParsingException("Could not get DASH manifest url", e);
         }
     }
 
@@ -497,7 +501,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         try {
             return playerResponse.getObject("streamingData").getString("hlsManifestUrl");
         } catch (final Exception e) {
-            throw new ParsingException("Could not get hls manifest url", e);
+            throw new ParsingException("Could not get HLS manifest url", e);
         }
     }
 
@@ -509,10 +513,15 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         try {
             for (final Map.Entry<String, ItagItem> entry : getItags(ADAPTIVE_FORMATS, ItagItem.ItagType.AUDIO).entrySet()) {
                 final ItagItem itag = entry.getValue();
-                final AudioStream audioStream = new AudioStream(entry.getKey(), itag);
-                if (!Stream.containSimilarStream(audioStream, audioStreams)) {
-                    audioStreams.add(audioStream);
-                }
+                final AudioStream audioStream = new AudioStream(String.valueOf(itag.id),
+                        entry.getKey(), true, itag.getMediaFormat(),
+                        DeliveryMethod.PROGRESSIVE_HTTP, itag.avgBitrate, itag);
+                audioStreams.add(audioStream);
+            }
+
+            final DashMpdParser.Result dashMpdResult = getDashResult();
+            if (dashMpdResult != null) {
+                audioStreams.addAll(dashMpdResult.getAudioStreams());
             }
         } catch (final Exception e) {
             throw new ParsingException("Could not get audio streams", e);
@@ -529,10 +538,15 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         try {
             for (final Map.Entry<String, ItagItem> entry : getItags(FORMATS, ItagItem.ItagType.VIDEO).entrySet()) {
                 final ItagItem itag = entry.getValue();
-                final VideoStream videoStream = new VideoStream(entry.getKey(), false, itag);
-                if (!Stream.containSimilarStream(videoStream, videoStreams)) {
-                    videoStreams.add(videoStream);
-                }
+                final VideoStream videoStream = new VideoStream(String.valueOf(itag.id),
+                        entry.getKey(), true, itag.getMediaFormat(),
+                        DeliveryMethod.PROGRESSIVE_HTTP, itag.resolutionString, false, itag);
+                videoStreams.add(videoStream);
+            }
+
+            final DashMpdParser.Result dashMpdResult = getDashResult();
+            if (dashMpdResult != null) {
+                videoStreams.addAll(dashMpdResult.getVideoStreams());
             }
         } catch (final Exception e) {
             throw new ParsingException("Could not get video streams", e);
@@ -549,10 +563,15 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             for (final Map.Entry<String, ItagItem> entry : getItags(ADAPTIVE_FORMATS, ItagItem.ItagType.VIDEO_ONLY).entrySet()) {
                 final ItagItem itag = entry.getValue();
 
-                final VideoStream videoStream = new VideoStream(entry.getKey(), true, itag);
-                if (!Stream.containSimilarStream(videoStream, videoOnlyStreams)) {
-                    videoOnlyStreams.add(videoStream);
-                }
+                final VideoStream videoStream = new VideoStream(String.valueOf(itag.id),
+                        entry.getKey(), true, itag.getMediaFormat(),
+                        DeliveryMethod.PROGRESSIVE_HTTP, itag.resolutionString, true, itag);
+                videoOnlyStreams.add(videoStream);
+            }
+
+            final DashMpdParser.Result dashMpdResult = getDashResult();
+            if (dashMpdResult != null) {
+                videoOnlyStreams.addAll(dashMpdResult.getVideoOnlyStreams());
             }
         } catch (final Exception e) {
             throw new ParsingException("Could not get video only streams", e);
@@ -595,11 +614,13 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             if (languageCode != null && baseUrl != null && vssId != null) {
                 final boolean isAutoGenerated = vssId.startsWith("a.");
                 final String cleanUrl = baseUrl
-                        .replaceAll("&fmt=[^&]*", "") // Remove preexisting format if exists
-                        .replaceAll("&tlang=[^&]*", ""); // Remove translation language
+                        // Remove preexisting format if exists
+                        .replaceAll("&fmt=[^&]*", "")
+                        // Remove translation language
+                        .replaceAll("&tlang=[^&]*", "");
 
-                subtitles.add(new SubtitlesStream(format, languageCode,
-                        cleanUrl + "&fmt=" + format.getSuffix(), isAutoGenerated));
+                subtitles.add(new SubtitlesStream(cleanUrl + "&fmt=" + format.getSuffix(), format,
+                        languageCode, isAutoGenerated));
             }
         }
 
@@ -993,6 +1014,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                     if (itagItem.itagType == itagTypeWanted) {
                         // Ignore streams that are delivered using YouTube's OTF format,
                         // as those only work with DASH and not with progressive HTTP.
+                        // Those should be extracted when parsing the DASH manifest.
                         if (formatData.getString("type", EMPTY_STRING)
                                 .equalsIgnoreCase("FORMAT_STREAM_TYPE_OTF")) {
                             continue;
@@ -1035,6 +1057,21 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         }
 
         return urlAndItags;
+    }
+
+    @Nullable
+    private DashMpdParser.Result getDashResult() throws ParsingException, ReCaptchaException {
+        if (hasDashManifest == null && dashResult == null) {
+            final String dashMpdUrl = this.getDashMpdUrl();
+            if (isNullOrEmpty(dashMpdUrl)) {
+                hasDashManifest = false;
+                return null;
+            } else {
+                hasDashManifest = true;
+                dashResult = DashMpdParser.getStreams(dashMpdUrl);
+            }
+        }
+        return dashResult;
     }
 
     @Nonnull
