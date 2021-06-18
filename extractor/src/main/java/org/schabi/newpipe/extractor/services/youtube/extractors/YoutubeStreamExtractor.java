@@ -515,7 +515,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                 final ItagItem itag = entry.getValue();
                 final AudioStream audioStream = new AudioStream(String.valueOf(itag.id),
                         entry.getKey(), true, itag.getMediaFormat(),
-                        DeliveryMethod.PROGRESSIVE_HTTP, itag.avgBitrate, itag);
+                        DeliveryMethod.PROGRESSIVE_HTTP, itag.avgBitrate, itag, null);
                 audioStreams.add(audioStream);
             }
 
@@ -540,7 +540,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                 final ItagItem itag = entry.getValue();
                 final VideoStream videoStream = new VideoStream(String.valueOf(itag.id),
                         entry.getKey(), true, itag.getMediaFormat(),
-                        DeliveryMethod.PROGRESSIVE_HTTP, itag.resolutionString, false, itag);
+                        DeliveryMethod.PROGRESSIVE_HTTP, itag.resolutionString, false, itag, null);
                 videoStreams.add(videoStream);
             }
 
@@ -565,7 +565,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
 
                 final VideoStream videoStream = new VideoStream(String.valueOf(itag.id),
                         entry.getKey(), true, itag.getMediaFormat(),
-                        DeliveryMethod.PROGRESSIVE_HTTP, itag.resolutionString, true, itag);
+                        DeliveryMethod.PROGRESSIVE_HTTP, itag.resolutionString, true, itag, null);
                 videoOnlyStreams.add(videoStream);
             }
 
