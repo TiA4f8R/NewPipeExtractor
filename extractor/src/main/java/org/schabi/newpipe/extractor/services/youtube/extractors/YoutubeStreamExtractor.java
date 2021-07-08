@@ -509,22 +509,25 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     public List<AudioStream> getAudioStreams() throws ExtractionException {
         assertPageFetched();
         final List<AudioStream> audioStreams = new ArrayList<>();
+        final StreamType streamType = this.getStreamType();
 
-        try {
-            for (final Map.Entry<String, ItagItem> entry : getItags(ADAPTIVE_FORMATS, ItagItem.ItagType.AUDIO).entrySet()) {
-                final ItagItem itag = entry.getValue();
-                final AudioStream audioStream = new AudioStream(String.valueOf(itag.id),
-                        entry.getKey(), true, itag.getMediaFormat(),
-                        DeliveryMethod.PROGRESSIVE_HTTP, itag.avgBitrate, itag, null);
-                audioStreams.add(audioStream);
+        if (streamType == StreamType.VIDEO_STREAM) {
+            try {
+                for (final Map.Entry<String, ItagItem> entry : getItags(ADAPTIVE_FORMATS, ItagItem.ItagType.AUDIO).entrySet()) {
+                    final ItagItem itag = entry.getValue();
+                    final AudioStream audioStream = new AudioStream(String.valueOf(itag.id),
+                            entry.getKey(), true, itag.getMediaFormat(),
+                            DeliveryMethod.PROGRESSIVE_HTTP, itag.avgBitrate, itag, null);
+                    audioStreams.add(audioStream);
+                }
+            } catch (final Exception e) {
+                throw new ParsingException("Could not get audio streams", e);
             }
+        }
 
-            final DashMpdParser.Result dashMpdResult = getDashResult();
-            if (dashMpdResult != null) {
-                audioStreams.addAll(dashMpdResult.getAudioStreams());
-            }
-        } catch (final Exception e) {
-            throw new ParsingException("Could not get audio streams", e);
+        final DashMpdParser.Result dashMpdResult = getDashResult();
+        if (dashMpdResult != null) {
+            audioStreams.addAll(dashMpdResult.getAudioStreams());
         }
 
         return audioStreams;
@@ -534,22 +537,25 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     public List<VideoStream> getVideoStreams() throws ExtractionException {
         assertPageFetched();
         final List<VideoStream> videoStreams = new ArrayList<>();
+        final StreamType streamType = this.getStreamType();
 
-        try {
-            for (final Map.Entry<String, ItagItem> entry : getItags(FORMATS, ItagItem.ItagType.VIDEO).entrySet()) {
-                final ItagItem itag = entry.getValue();
-                final VideoStream videoStream = new VideoStream(String.valueOf(itag.id),
-                        entry.getKey(), true, itag.getMediaFormat(),
-                        DeliveryMethod.PROGRESSIVE_HTTP, itag.resolutionString, false, itag, null);
-                videoStreams.add(videoStream);
+        if (streamType == StreamType.VIDEO_STREAM) {
+            try {
+                for (final Map.Entry<String, ItagItem> entry : getItags(FORMATS, ItagItem.ItagType.VIDEO).entrySet()) {
+                    final ItagItem itag = entry.getValue();
+                    final VideoStream videoStream = new VideoStream(String.valueOf(itag.id),
+                            entry.getKey(), true, itag.getMediaFormat(),
+                            DeliveryMethod.PROGRESSIVE_HTTP, itag.resolutionString, false, itag, null);
+                    videoStreams.add(videoStream);
+                }
+            } catch (final Exception e) {
+                throw new ParsingException("Could not get video streams", e);
             }
+        }
 
-            final DashMpdParser.Result dashMpdResult = getDashResult();
-            if (dashMpdResult != null) {
-                videoStreams.addAll(dashMpdResult.getVideoStreams());
-            }
-        } catch (final Exception e) {
-            throw new ParsingException("Could not get video streams", e);
+        final DashMpdParser.Result dashMpdResult = getDashResult();
+        if (dashMpdResult != null) {
+            videoStreams.addAll(dashMpdResult.getVideoStreams());
         }
 
         return videoStreams;
@@ -559,22 +565,26 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     public List<VideoStream> getVideoOnlyStreams() throws ExtractionException {
         assertPageFetched();
         final List<VideoStream> videoOnlyStreams = new ArrayList<>();
-        try {
-            for (final Map.Entry<String, ItagItem> entry : getItags(ADAPTIVE_FORMATS, ItagItem.ItagType.VIDEO_ONLY).entrySet()) {
-                final ItagItem itag = entry.getValue();
+        final StreamType streamType = this.getStreamType();
 
-                final VideoStream videoStream = new VideoStream(String.valueOf(itag.id),
-                        entry.getKey(), true, itag.getMediaFormat(),
-                        DeliveryMethod.PROGRESSIVE_HTTP, itag.resolutionString, true, itag, null);
-                videoOnlyStreams.add(videoStream);
-            }
+        if (streamType == StreamType.VIDEO_STREAM) {
+            try {
+                for (final Map.Entry<String, ItagItem> entry : getItags(ADAPTIVE_FORMATS, ItagItem.ItagType.VIDEO_ONLY).entrySet()) {
+                    final ItagItem itag = entry.getValue();
 
-            final DashMpdParser.Result dashMpdResult = getDashResult();
-            if (dashMpdResult != null) {
-                videoOnlyStreams.addAll(dashMpdResult.getVideoOnlyStreams());
+                    final VideoStream videoStream = new VideoStream(String.valueOf(itag.id),
+                            entry.getKey(), true, itag.getMediaFormat(),
+                            DeliveryMethod.PROGRESSIVE_HTTP, itag.resolutionString, true, itag, null);
+                    videoOnlyStreams.add(videoStream);
+                }
+            } catch (final Exception e) {
+                throw new ParsingException("Could not get video only streams", e);
             }
-        } catch (final Exception e) {
-            throw new ParsingException("Could not get video only streams", e);
+        }
+
+        final DashMpdParser.Result dashMpdResult = getDashResult();
+        if (dashMpdResult != null) {
+            videoOnlyStreams.addAll(dashMpdResult.getVideoOnlyStreams());
         }
 
         return videoOnlyStreams;
@@ -630,8 +640,13 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     @Override
     public StreamType getStreamType() {
         assertPageFetched();
-        return playerResponse.getObject("streamingData").has(FORMATS)
-                ? StreamType.VIDEO_STREAM : StreamType.LIVE_STREAM;
+        if (playerResponse.getObject("playabilityStatus").has("liveStreamability")) {
+            return StreamType.LIVE_STREAM;
+        } else if (playerResponse.getObject("videoDetails").getBoolean("isPostLiveDvr", false)) {
+            return StreamType.POST_LIVE_STREAM;
+        } else {
+            return StreamType.VIDEO_STREAM;
+        }
     }
 
     @Nullable
