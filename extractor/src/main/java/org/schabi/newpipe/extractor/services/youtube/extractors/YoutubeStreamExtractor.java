@@ -511,23 +511,30 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         final List<AudioStream> audioStreams = new ArrayList<>();
         final StreamType streamType = this.getStreamType();
 
-        if (streamType == StreamType.VIDEO_STREAM) {
-            try {
-                for (final Map.Entry<String, ItagItem> entry : getItags(ADAPTIVE_FORMATS, ItagItem.ItagType.AUDIO).entrySet()) {
-                    final ItagItem itag = entry.getValue();
-                    final AudioStream audioStream = new AudioStream(String.valueOf(itag.id),
-                            entry.getKey(), true, itag.getMediaFormat(),
-                            DeliveryMethod.PROGRESSIVE_HTTP, itag.avgBitrate, itag, null);
-                    audioStreams.add(audioStream);
+        try {
+            for (final Map.Entry<String, ItagItem> entry : getItags(ADAPTIVE_FORMATS, ItagItem.ItagType.AUDIO).entrySet()) {
+                final ItagItem itag = entry.getValue();
+                final AudioStream audioStream;
+                if (streamType == StreamType.VIDEO_STREAM) {
+                    audioStream = new AudioStream(String.valueOf(itag.id), entry.getKey(), true,
+                            itag.getMediaFormat(), DeliveryMethod.PROGRESSIVE_HTTP,
+                            itag.avgBitrate, itag, null);
+                } else {
+                    audioStream = new AudioStream(String.valueOf(itag.id), entry.getKey(), true,
+                            itag.getMediaFormat(), DeliveryMethod.DASH,
+                            itag.avgBitrate, itag, null);
                 }
-            } catch (final Exception e) {
-                throw new ParsingException("Could not get audio streams", e);
+                audioStreams.add(audioStream);
             }
+        } catch (final Exception e) {
+            throw new ParsingException("Could not get audio streams", e);
         }
 
-        final DashMpdParser.Result dashMpdResult = getDashResult();
-        if (dashMpdResult != null) {
-            audioStreams.addAll(dashMpdResult.getAudioStreams());
+        if (streamType == StreamType.VIDEO_STREAM) {
+            final DashMpdParser.Result dashMpdResult = getDashResult();
+            if (dashMpdResult != null) {
+                audioStreams.addAll(dashMpdResult.getAudioStreams());
+            }
         }
 
         return audioStreams;
@@ -539,23 +546,30 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         final List<VideoStream> videoStreams = new ArrayList<>();
         final StreamType streamType = this.getStreamType();
 
-        if (streamType == StreamType.VIDEO_STREAM) {
-            try {
-                for (final Map.Entry<String, ItagItem> entry : getItags(FORMATS, ItagItem.ItagType.VIDEO).entrySet()) {
-                    final ItagItem itag = entry.getValue();
-                    final VideoStream videoStream = new VideoStream(String.valueOf(itag.id),
-                            entry.getKey(), true, itag.getMediaFormat(),
-                            DeliveryMethod.PROGRESSIVE_HTTP, itag.resolutionString, false, itag, null);
-                    videoStreams.add(videoStream);
+        try {
+            for (final Map.Entry<String, ItagItem> entry : getItags(FORMATS, ItagItem.ItagType.VIDEO).entrySet()) {
+                final ItagItem itag = entry.getValue();
+                final VideoStream videoStream;
+                if (streamType == StreamType.VIDEO_STREAM) {
+                    videoStream = new VideoStream(String.valueOf(itag.id), entry.getKey(), true,
+                            itag.getMediaFormat(), DeliveryMethod.PROGRESSIVE_HTTP,
+                            itag.resolutionString, false, itag, null);
+                } else {
+                    videoStream = new VideoStream(String.valueOf(itag.id), entry.getKey(), true,
+                            itag.getMediaFormat(), DeliveryMethod.DASH, itag.resolutionString,
+                            false, itag, null);
                 }
-            } catch (final Exception e) {
-                throw new ParsingException("Could not get video streams", e);
+                videoStreams.add(videoStream);
             }
+        } catch (final Exception e) {
+            throw new ParsingException("Could not get video streams", e);
         }
 
-        final DashMpdParser.Result dashMpdResult = getDashResult();
-        if (dashMpdResult != null) {
-            videoStreams.addAll(dashMpdResult.getVideoStreams());
+        if (streamType == StreamType.VIDEO_STREAM) {
+            final DashMpdParser.Result dashMpdResult = getDashResult();
+            if (dashMpdResult != null) {
+                videoStreams.addAll(dashMpdResult.getVideoStreams());
+            }
         }
 
         return videoStreams;
@@ -567,24 +581,30 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         final List<VideoStream> videoOnlyStreams = new ArrayList<>();
         final StreamType streamType = this.getStreamType();
 
-        if (streamType == StreamType.VIDEO_STREAM) {
-            try {
-                for (final Map.Entry<String, ItagItem> entry : getItags(ADAPTIVE_FORMATS, ItagItem.ItagType.VIDEO_ONLY).entrySet()) {
-                    final ItagItem itag = entry.getValue();
-
-                    final VideoStream videoStream = new VideoStream(String.valueOf(itag.id),
-                            entry.getKey(), true, itag.getMediaFormat(),
-                            DeliveryMethod.PROGRESSIVE_HTTP, itag.resolutionString, true, itag, null);
-                    videoOnlyStreams.add(videoStream);
+        try {
+            for (final Map.Entry<String, ItagItem> entry : getItags(ADAPTIVE_FORMATS, ItagItem.ItagType.VIDEO_ONLY).entrySet()) {
+                final ItagItem itag = entry.getValue();
+                final VideoStream videoStream;
+                if (streamType == StreamType.VIDEO_STREAM) {
+                    videoStream = new VideoStream(String.valueOf(itag.id), entry.getKey(), true,
+                            itag.getMediaFormat(), DeliveryMethod.PROGRESSIVE_HTTP,
+                            itag.resolutionString, true, itag, null);
+                } else {
+                    videoStream = new VideoStream(String.valueOf(itag.id), entry.getKey(), true,
+                            itag.getMediaFormat(), DeliveryMethod.DASH,
+                            itag.resolutionString, true, itag, null);
                 }
-            } catch (final Exception e) {
-                throw new ParsingException("Could not get video only streams", e);
+                videoOnlyStreams.add(videoStream);
             }
+        } catch (final Exception e) {
+            throw new ParsingException("Could not get video only streams", e);
         }
 
-        final DashMpdParser.Result dashMpdResult = getDashResult();
-        if (dashMpdResult != null) {
-            videoOnlyStreams.addAll(dashMpdResult.getVideoOnlyStreams());
+        if (streamType == StreamType.VIDEO_STREAM) {
+            final DashMpdParser.Result dashMpdResult = getDashResult();
+            if (dashMpdResult != null) {
+                videoOnlyStreams.addAll(dashMpdResult.getVideoOnlyStreams());
+            }
         }
 
         return videoOnlyStreams;
